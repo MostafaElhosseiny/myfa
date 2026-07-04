@@ -88,16 +88,21 @@ export const updateChallenge = createServerFn({ method: "POST" })
         .neq("id", data.id);
     }
 
-    const required = data.replaceFlags ? data.fields.length : undefined;
-
-    const patch: Record<string, unknown> = {
+    const patch: {
+      title: string;
+      description: string;
+      category: string;
+      points_per_flag: number;
+      active: boolean;
+      required_flags?: number;
+    } = {
       title: data.title,
       description: data.description,
       category: data.category,
       points_per_flag: data.points_per_flag,
       active: data.active,
     };
-    if (required !== undefined) patch.required_flags = required;
+    if (data.replaceFlags) patch.required_flags = data.fields.length;
 
     const { error } = await supabaseAdmin.from("challenges").update(patch).eq("id", data.id);
     if (error) throw new Error(error.message);
