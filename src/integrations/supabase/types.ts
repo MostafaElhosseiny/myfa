@@ -318,35 +318,7 @@ export type Database = {
       }
     }
     Views: {
-      challenge_flag_fields: {
-        Row: {
-          challenge_id: string | null
-          flag_order: number | null
-          id: string | null
-          label: string | null
-        }
-        Insert: {
-          challenge_id?: string | null
-          flag_order?: number | null
-          id?: string | null
-          label?: string | null
-        }
-        Update: {
-          challenge_id?: string | null
-          flag_order?: number | null
-          id?: string | null
-          label?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "challenge_flags_challenge_id_fkey"
-            columns: ["challenge_id"]
-            isOneToOne: false
-            referencedRelation: "challenges"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       has_role: {
