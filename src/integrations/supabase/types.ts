@@ -14,16 +14,320 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity_log: {
+        Row: {
+          challenge_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          message: string
+          player_id: string | null
+        }
+        Insert: {
+          challenge_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          message: string
+          player_id?: string | null
+        }
+        Update: {
+          challenge_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          message?: string
+          player_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_log_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_log_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenge_flags: {
+        Row: {
+          challenge_id: string
+          flag_hash: string
+          flag_order: number
+          id: string
+        }
+        Insert: {
+          challenge_id: string
+          flag_hash: string
+          flag_order: number
+          id?: string
+        }
+        Update: {
+          challenge_id?: string
+          flag_hash?: string
+          flag_order?: number
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_flags_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenges: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          description: string
+          id: string
+          points_per_flag: number
+          required_flags: number
+          title: string
+        }
+        Insert: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          points_per_flag?: number
+          required_flags: number
+          title: string
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          points_per_flag?: number
+          required_flags?: number
+          title?: string
+        }
+        Relationships: []
+      }
+      competition_state: {
+        Row: {
+          ends_at: string | null
+          id: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ends_at?: string | null
+          id?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ends_at?: string | null
+          id?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      player_challenge_progress: {
+        Row: {
+          challenge_id: string
+          completed_at: string | null
+          flags_solved: number
+          player_id: string
+          points: number
+          updated_at: string
+        }
+        Insert: {
+          challenge_id: string
+          completed_at?: string | null
+          flags_solved?: number
+          player_id: string
+          points?: number
+          updated_at?: string
+        }
+        Update: {
+          challenge_id?: string
+          completed_at?: string | null
+          flags_solved?: number
+          player_id?: string
+          points?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_challenge_progress_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_challenge_progress_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_flag_solves: {
+        Row: {
+          challenge_id: string
+          flag_hash: string
+          player_id: string
+          solved_at: string
+        }
+        Insert: {
+          challenge_id: string
+          flag_hash: string
+          player_id: string
+          solved_at?: string
+        }
+        Update: {
+          challenge_id?: string
+          flag_hash?: string
+          player_id?: string
+          solved_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_flag_solves_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_flag_solves_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          challenges_completed: number
+          created_at: string
+          first_completed_at: string | null
+          flags_solved: number
+          id: string
+          last_seen_at: string
+          name_display: string
+          name_lower: string
+          points: number
+        }
+        Insert: {
+          challenges_completed?: number
+          created_at?: string
+          first_completed_at?: string | null
+          flags_solved?: number
+          id?: string
+          last_seen_at?: string
+          name_display: string
+          name_lower: string
+          points?: number
+        }
+        Update: {
+          challenges_completed?: number
+          created_at?: string
+          first_completed_at?: string | null
+          flags_solved?: number
+          id?: string
+          last_seen_at?: string
+          name_display?: string
+          name_lower?: string
+          points?: number
+        }
+        Relationships: []
+      }
+      submissions: {
+        Row: {
+          challenge_id: string
+          correct: boolean
+          flag_hash: string
+          id: string
+          player_id: string
+          submitted_at: string
+        }
+        Insert: {
+          challenge_id: string
+          correct: boolean
+          flag_hash: string
+          id?: string
+          player_id: string
+          submitted_at?: string
+        }
+        Update: {
+          challenge_id?: string
+          correct?: boolean
+          flag_hash?: string
+          id?: string
+          player_id?: string
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submissions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +454,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin"],
+    },
   },
 } as const
