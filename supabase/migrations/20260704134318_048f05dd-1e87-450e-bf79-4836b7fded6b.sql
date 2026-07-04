@@ -1,0 +1,1 @@
+DROP VIEW IF EXISTS public.challenge_flag_fields;

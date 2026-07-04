@@ -62,18 +62,21 @@ export type Database = {
           flag_hash: string
           flag_order: number
           id: string
+          label: string
         }
         Insert: {
           challenge_id: string
           flag_hash: string
           flag_order: number
           id?: string
+          label?: string
         }
         Update: {
           challenge_id?: string
           flag_hash?: string
           flag_order?: number
           id?: string
+          label?: string
         }
         Relationships: [
           {

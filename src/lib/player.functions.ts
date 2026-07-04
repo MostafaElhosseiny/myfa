@@ -46,6 +46,80 @@ export const joinAsPlayer = createServerFn({ method: "POST" })
     return { player: inserted, isNew: true };
   });
 
+// Returns the currently active challenge (single-challenge mode) with safe
+// flag metadata: order + label only. Hashes never leave the server.
+export const getActiveChallenge = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: challenge } = await supabaseAdmin
+    .from("challenges")
+    .select("id, title, description, category, required_flags, points_per_flag, active")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (!challenge) return { challenge: null as null };
+  const { data: flags } = await supabaseAdmin
+    .from("challenge_flags")
+    .select("flag_order, label")
+    .eq("challenge_id", challenge.id)
+    .order("flag_order", { ascending: true });
+  return {
+    challenge: {
+      id: challenge.id,
+      title: challenge.title,
+      description: challenge.description,
+      category: challenge.category,
+      required_flags: challenge.required_flags,
+      points_per_flag: challenge.points_per_flag,
+      fields: (flags ?? []).map((f) => ({ order: f.flag_order, label: f.label })),
+    },
+  };
+});
+
+// Player's progress on active challenge — which flag orders are solved.
+export const getMyProgress = createServerFn({ method: "POST" })
+  .inputValidator((d: { playerId: string; challengeId: string }) =>
+    z.object({ playerId: z.string().uuid(), challengeId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: solves } = await supabaseAdmin
+      .from("player_flag_solves")
+      .select("flag_hash")
+      .eq("player_id", data.playerId)
+      .eq("challenge_id", data.challengeId);
+    // Map hashes back to their orders (server-only join)
+    const hashes = (solves ?? []).map((s) => s.flag_hash);
+    let solvedOrders: number[] = [];
+    if (hashes.length > 0) {
+      const { data: fs } = await supabaseAdmin
+        .from("challenge_flags")
+        .select("flag_order, flag_hash")
+        .eq("challenge_id", data.challengeId)
+        .in("flag_hash", hashes);
+      solvedOrders = (fs ?? []).map((f) => f.flag_order).sort((a, b) => a - b);
+    }
+    const { data: prog } = await supabaseAdmin
+      .from("player_challenge_progress")
+      .select("points, completed_at")
+      .eq("player_id", data.playerId)
+      .eq("challenge_id", data.challengeId)
+      .maybeSingle();
+    return {
+      solvedOrders,
+      points: prog?.points ?? 0,
+      completedAt: prog?.completed_at ?? null,
+    };
+  });
+
+// Constant-time hex-string equality — avoids timing side-channels on hash compare.
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return out === 0;
+}
+
 export const submitFlag = createServerFn({ method: "POST" })
   .inputValidator((data: { playerId: string; challengeId: string; flag: string }) =>
     z
@@ -60,7 +134,7 @@ export const submitFlag = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { hashFlag } = await import("@/lib/hash.server");
 
-    // Check competition state
+    // Competition state
     const { data: state } = await supabaseAdmin
       .from("competition_state")
       .select("status, ends_at")
@@ -91,53 +165,65 @@ export const submitFlag = createServerFn({ method: "POST" })
 
     const hash = hashFlag(data.flag);
 
-    // Is it a valid flag for this challenge?
-    const { data: flagRow } = await supabaseAdmin
+    // Load all flags for challenge (server-only)
+    const { data: allFlags } = await supabaseAdmin
       .from("challenge_flags")
-      .select("id, flag_order")
+      .select("flag_hash, flag_order, label")
       .eq("challenge_id", challenge.id)
-      .eq("flag_hash", hash)
-      .maybeSingle();
+      .order("flag_order", { ascending: true });
+    const flags = allFlags ?? [];
 
-    // Log every submission
+    // Find matching flag using constant-time comparison
+    const matched = flags.find((f) => timingSafeEqualHex(f.flag_hash, hash));
+
+    // Log every attempt (audit)
     await supabaseAdmin.from("submissions").insert({
       player_id: player.id,
       challenge_id: challenge.id,
       flag_hash: hash,
-      correct: !!flagRow,
+      correct: !!matched,
     });
 
-    if (!flagRow) {
+    // What has the player already solved?
+    const { data: prevSolves } = await supabaseAdmin
+      .from("player_flag_solves")
+      .select("flag_hash")
+      .eq("player_id", player.id)
+      .eq("challenge_id", challenge.id);
+    const solvedHashes = new Set((prevSolves ?? []).map((s) => s.flag_hash));
+    const solvedOrders = flags
+      .filter((f) => solvedHashes.has(f.flag_hash))
+      .map((f) => f.flag_order)
+      .sort((a, b) => a - b);
+    const nextRequiredOrder = solvedOrders.length + 1;
+    const nextField = flags.find((f) => f.flag_order === nextRequiredOrder);
+
+    if (!matched) {
       return { status: "incorrect" as const, message: "Incorrect flag" };
     }
 
     // Duplicate?
-    const { data: already } = await supabaseAdmin
-      .from("player_flag_solves")
-      .select("flag_hash")
-      .eq("player_id", player.id)
-      .eq("challenge_id", challenge.id)
-      .eq("flag_hash", hash)
-      .maybeSingle();
-    if (already) {
+    if (solvedHashes.has(matched.flag_hash)) {
       return { status: "duplicate" as const, message: "You already submitted this flag." };
+    }
+
+    // Sequential enforcement
+    if (matched.flag_order !== nextRequiredOrder) {
+      const required = nextField?.label ?? `Flag ${nextRequiredOrder}`;
+      return {
+        status: "out_of_order" as const,
+        message: `You must submit ${required} first.`,
+      };
     }
 
     // Record solve
     await supabaseAdmin.from("player_flag_solves").insert({
       player_id: player.id,
       challenge_id: challenge.id,
-      flag_hash: hash,
+      flag_hash: matched.flag_hash,
     });
 
-    // Recompute progress for this challenge
-    const { count: solvedCount } = await supabaseAdmin
-      .from("player_flag_solves")
-      .select("*", { count: "exact", head: true })
-      .eq("player_id", player.id)
-      .eq("challenge_id", challenge.id);
-
-    const flagsSolved = solvedCount ?? 0;
+    const flagsSolved = solvedOrders.length + 1;
     const points = flagsSolved * challenge.points_per_flag;
     const completed = flagsSolved >= challenge.required_flags;
     const completedAt = completed ? new Date().toISOString() : null;
@@ -151,15 +237,14 @@ export const submitFlag = createServerFn({ method: "POST" })
       updated_at: new Date().toISOString(),
     });
 
-    // Recompute player totals
+    // Recompute totals
     const { data: progressRows } = await supabaseAdmin
       .from("player_challenge_progress")
       .select("flags_solved, points, completed_at")
       .eq("player_id", player.id);
-
     const totalFlags = (progressRows ?? []).reduce((s, r) => s + (r.flags_solved ?? 0), 0);
     const totalPoints = (progressRows ?? []).reduce((s, r) => s + (r.points ?? 0), 0);
-    const totalChallengesCompleted = (progressRows ?? []).filter((r) => r.completed_at).length;
+    const totalCompleted = (progressRows ?? []).filter((r) => r.completed_at).length;
     const completedTimes = (progressRows ?? [])
       .map((r) => r.completed_at)
       .filter((v): v is string => !!v)
@@ -171,7 +256,7 @@ export const submitFlag = createServerFn({ method: "POST" })
       .update({
         points: totalPoints,
         flags_solved: totalFlags,
-        challenges_completed: totalChallengesCompleted,
+        challenges_completed: totalCompleted,
         first_completed_at: firstCompletedAt,
         last_seen_at: new Date().toISOString(),
       })
@@ -183,12 +268,12 @@ export const submitFlag = createServerFn({ method: "POST" })
       kind: completed ? "challenge_completed" : "flag_solved",
       message: completed
         ? `${player.name_display} completed ${challenge.title}`
-        : `${player.name_display} solved a flag on ${challenge.title}`,
+        : `${player.name_display} captured ${matched.label} on ${challenge.title}`,
     });
 
     return {
       status: "correct" as const,
-      message: completed ? "Challenge complete!" : "Flag accepted",
+      message: completed ? "Challenge complete!" : `${matched.label} accepted`,
       flagsSolved,
       requiredFlags: challenge.required_flags,
       points,

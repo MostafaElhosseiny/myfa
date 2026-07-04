@@ -12,14 +12,18 @@ async function assertAdmin(context: { supabase: any; userId: string }) {
   if (error || !data) throw new Error("Forbidden: admin only");
 }
 
+const FlagFieldInput = z.object({
+  value: z.string().trim().min(1).max(256),
+  label: z.string().trim().min(1).max(60),
+});
+
 const ChallengeInput = z.object({
   title: z.string().trim().min(2).max(120),
   description: z.string().trim().max(2000).default(""),
   category: z.string().trim().min(1).max(40).default("Misc"),
-  required_flags: z.number().int().min(1).max(20),
   points_per_flag: z.number().int().min(1).max(10000),
   active: z.boolean().default(true),
-  flags: z.array(z.string().trim().min(1).max(256)).min(1).max(20),
+  fields: z.array(FlagFieldInput).min(1).max(20),
 });
 
 export const createChallenge = createServerFn({ method: "POST" })
@@ -27,11 +31,13 @@ export const createChallenge = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => ChallengeInput.parse(data))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    if (data.flags.length !== data.required_flags) {
-      throw new Error("Number of flags must match required_flags");
-    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { hashFlag } = await import("@/lib/hash.server");
+
+    // Single-active-challenge mode: deactivate anything currently active if this is active.
+    if (data.active) {
+      await supabaseAdmin.from("challenges").update({ active: false }).eq("active", true);
+    }
 
     const { data: ch, error } = await supabaseAdmin
       .from("challenges")
@@ -39,7 +45,7 @@ export const createChallenge = createServerFn({ method: "POST" })
         title: data.title,
         description: data.description,
         category: data.category,
-        required_flags: data.required_flags,
+        required_flags: data.fields.length,
         points_per_flag: data.points_per_flag,
         active: data.active,
       })
@@ -47,10 +53,11 @@ export const createChallenge = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
-    const flagRows = data.flags.map((f, i) => ({
+    const flagRows = data.fields.map((f, i) => ({
       challenge_id: ch.id,
-      flag_hash: hashFlag(f),
+      flag_hash: hashFlag(f.value),
       flag_order: i + 1,
+      label: f.label,
     }));
     const { error: fErr } = await supabaseAdmin.from("challenge_flags").insert(flagRows);
     if (fErr) throw new Error(fErr.message);
@@ -63,8 +70,9 @@ export const updateChallenge = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     ChallengeInput.extend({
       id: z.string().uuid(),
-      flags: z.array(z.string().trim().min(1).max(256)).min(0).max(20),
+      fields: z.array(FlagFieldInput).min(0).max(20),
       replaceFlags: z.boolean().default(false),
+      labelsOnly: z.boolean().default(false),
     }).parse(data),
   )
   .handler(async ({ data, context }) => {
@@ -72,34 +80,54 @@ export const updateChallenge = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { hashFlag } = await import("@/lib/hash.server");
 
-    const { error } = await supabaseAdmin
-      .from("challenges")
-      .update({
-        title: data.title,
-        description: data.description,
-        category: data.category,
-        required_flags: data.required_flags,
-        points_per_flag: data.points_per_flag,
-        active: data.active,
-      })
-      .eq("id", data.id);
+    if (data.active) {
+      await supabaseAdmin
+        .from("challenges")
+        .update({ active: false })
+        .eq("active", true)
+        .neq("id", data.id);
+    }
+
+    const patch: {
+      title: string;
+      description: string;
+      category: string;
+      points_per_flag: number;
+      active: boolean;
+      required_flags?: number;
+    } = {
+      title: data.title,
+      description: data.description,
+      category: data.category,
+      points_per_flag: data.points_per_flag,
+      active: data.active,
+    };
+    if (data.replaceFlags) patch.required_flags = data.fields.length;
+
+    const { error } = await supabaseAdmin.from("challenges").update(patch).eq("id", data.id);
     if (error) throw new Error(error.message);
 
-    if (data.replaceFlags && data.flags.length > 0) {
-      if (data.flags.length !== data.required_flags) {
-        throw new Error("Number of flags must match required_flags");
-      }
+    if (data.replaceFlags && data.fields.length > 0) {
       await supabaseAdmin.from("challenge_flags").delete().eq("challenge_id", data.id);
       await supabaseAdmin.from("challenge_flags").insert(
-        data.flags.map((f, i) => ({
+        data.fields.map((f, i) => ({
           challenge_id: data.id,
-          flag_hash: hashFlag(f),
+          flag_hash: hashFlag(f.value),
           flag_order: i + 1,
+          label: f.label,
         })),
       );
-      // Reset progress on this challenge
       await supabaseAdmin.from("player_flag_solves").delete().eq("challenge_id", data.id);
       await supabaseAdmin.from("player_challenge_progress").delete().eq("challenge_id", data.id);
+    } else if (data.labelsOnly && data.fields.length > 0) {
+      // Rename labels without touching hashes/progress.
+      for (let i = 0; i < data.fields.length; i++) {
+        await supabaseAdmin
+          .from("challenge_flags")
+          .update({ label: data.fields[i].label })
+          .eq("challenge_id", data.id)
+          .eq("flag_order", i + 1);
+      }
     }
     return { ok: true };
   });
@@ -185,11 +213,26 @@ export const getAdminChallenges = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin
+    const { data: challenges } = await supabaseAdmin
       .from("challenges")
       .select("*")
       .order("created_at", { ascending: false });
-    return data ?? [];
+    const rows = challenges ?? [];
+    const ids = rows.map((r) => r.id);
+    let labelsByChallenge = new Map<string, { flag_order: number; label: string }[]>();
+    if (ids.length > 0) {
+      const { data: flags } = await supabaseAdmin
+        .from("challenge_flags")
+        .select("challenge_id, flag_order, label")
+        .in("challenge_id", ids)
+        .order("flag_order", { ascending: true });
+      for (const f of flags ?? []) {
+        const arr = labelsByChallenge.get(f.challenge_id) ?? [];
+        arr.push({ flag_order: f.flag_order, label: f.label });
+        labelsByChallenge.set(f.challenge_id, arr);
+      }
+    }
+    return rows.map((r) => ({ ...r, fields: labelsByChallenge.get(r.id) ?? [] }));
   });
 
 export const getAdminSubmissions = createServerFn({ method: "GET" })
