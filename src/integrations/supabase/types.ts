@@ -62,18 +62,21 @@ export type Database = {
           flag_hash: string
           flag_order: number
           id: string
+          label: string
         }
         Insert: {
           challenge_id: string
           flag_hash: string
           flag_order: number
           id?: string
+          label?: string
         }
         Update: {
           challenge_id?: string
           flag_hash?: string
           flag_order?: number
           id?: string
+          label?: string
         }
         Relationships: [
           {
@@ -315,7 +318,35 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      challenge_flag_fields: {
+        Row: {
+          challenge_id: string | null
+          flag_order: number | null
+          id: string | null
+          label: string | null
+        }
+        Insert: {
+          challenge_id?: string | null
+          flag_order?: number | null
+          id?: string | null
+          label?: string | null
+        }
+        Update: {
+          challenge_id?: string | null
+          flag_order?: number | null
+          id?: string | null
+          label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_flags_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_role: {
