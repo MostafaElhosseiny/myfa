@@ -8,8 +8,7 @@ export function useRealtimeInvalidate(tables: string[], queryKeys: string[][]) {
     const channel = supabase.channel(`rt-${tables.join("-")}`);
     for (const t of tables) {
       channel.on(
-        // @ts-expect-error - supabase-js typing quirk on postgres_changes
-        "postgres_changes",
+        "postgres_changes" as never,
         { event: "*", schema: "public", table: t },
         () => {
           for (const key of queryKeys) qc.invalidateQueries({ queryKey: key });

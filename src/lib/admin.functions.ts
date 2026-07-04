@@ -128,7 +128,7 @@ export const setCompetitionState = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const patch: Record<string, unknown> = {
+    const patch: { status: typeof data.status; updated_at: string; ends_at?: string | null } = {
       status: data.status,
       updated_at: new Date().toISOString(),
     };
