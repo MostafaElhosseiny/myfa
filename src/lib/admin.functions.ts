@@ -179,6 +179,10 @@ export const resetCompetition = createServerFn({ method: "POST" })
       .from("players")
       .update({ points: 0, flags_solved: 0, challenges_completed: 0, first_completed_at: null })
       .neq("id", "00000000-0000-0000-0000-000000000000");
+    await supabaseAdmin
+      .from("competition_state")
+      .update({ status: "upcoming", ends_at: null, updated_at: new Date().toISOString() })
+      .eq("id", 1);
     return { ok: true };
   });
 
