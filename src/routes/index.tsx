@@ -195,22 +195,26 @@ function Home() {
                 {challenge ? challenge.category : "Own the leaderboard."}
               </span>
             </h1>
-            {challenge?.description ? (
-              <p className="mt-4 max-w-2xl text-muted-foreground whitespace-pre-line">
-                {challenge.description}
-              </p>
+            {challenge ? (
+              challenge.description ? (
+                <p className="mt-4 max-w-2xl text-muted-foreground whitespace-pre-line">
+                  {challenge.description}
+                </p>
+              ) : null
             ) : (
               <p className="mt-4 max-w-2xl text-muted-foreground">
                 Waiting for the admin to launch the active challenge. Sit tight — this page will
                 update automatically.
               </p>
             )}
-            <div className="mt-6">
-              <Countdown
-                endsAt={stateQ.data?.ends_at ?? null}
-                status={stateQ.data?.status ?? "live"}
-              />
-            </div>
+            {challenge ? (
+              <div className="mt-6">
+                <Countdown
+                  endsAt={stateQ.data?.ends_at ?? null}
+                  status={stateQ.data?.status ?? "upcoming"}
+                />
+              </div>
+            ) : null}
           </div>
 
           <motion.div
