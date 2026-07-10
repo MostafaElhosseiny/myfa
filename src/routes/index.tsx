@@ -485,11 +485,6 @@ function Home() {
             </ul>
           </div>
         </section>
-
-        <footer className="border-t border-glass-border pt-6 flex items-center justify-between text-xs text-muted-foreground font-mono">
-          <span>CTF/CORE · secured with SHA-256 flag hashing</span>
-          <span>{new Date().getFullYear()}</span>
-        </footer>
       </main>
     </div>
   );
