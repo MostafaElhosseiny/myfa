@@ -33,7 +33,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin + "/admin" },
+          options: { emailRedirectTo: window.location.origin + "/sasa" },
         });
         if (error) throw error;
         toast.success("Account created — signing you in…");
@@ -41,7 +41,7 @@ function AuthPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       toast.success("Signed in");
-      navigate({ to: "/admin" });
+      navigate({ to: "/sasa" });
     } catch (err) {
       const e = err as Error;
       toast.error(e.message || "Auth failed");
