@@ -252,13 +252,6 @@ function Home() {
                   />
                   <MiniStat label={completed ? "Done" : "Playing"} value={completed ? 1 : 0} />
                 </div>
-                <Button
-                  variant="outline"
-                  className="mt-4 w-full"
-                  onClick={() => savePlayer(null)}
-                >
-                  Leave (change name)
-                </Button>
               </div>
             ) : (
               <form
