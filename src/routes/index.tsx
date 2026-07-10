@@ -195,22 +195,26 @@ function Home() {
                 {challenge ? challenge.category : "Own the leaderboard."}
               </span>
             </h1>
-            {challenge?.description ? (
-              <p className="mt-4 max-w-2xl text-muted-foreground whitespace-pre-line">
-                {challenge.description}
-              </p>
+            {challenge ? (
+              challenge.description ? (
+                <p className="mt-4 max-w-2xl text-muted-foreground whitespace-pre-line">
+                  {challenge.description}
+                </p>
+              ) : null
             ) : (
               <p className="mt-4 max-w-2xl text-muted-foreground">
                 Waiting for the admin to launch the active challenge. Sit tight — this page will
                 update automatically.
               </p>
             )}
-            <div className="mt-6">
-              <Countdown
-                endsAt={stateQ.data?.ends_at ?? null}
-                status={stateQ.data?.status ?? "live"}
-              />
-            </div>
+            {challenge ? (
+              <div className="mt-6">
+                <Countdown
+                  endsAt={stateQ.data?.ends_at ?? null}
+                  status={stateQ.data?.status ?? "upcoming"}
+                />
+              </div>
+            ) : null}
           </div>
 
           <motion.div
@@ -248,13 +252,6 @@ function Home() {
                   />
                   <MiniStat label={completed ? "Done" : "Playing"} value={completed ? 1 : 0} />
                 </div>
-                <Button
-                  variant="outline"
-                  className="mt-4 w-full"
-                  onClick={() => savePlayer(null)}
-                >
-                  Leave (change name)
-                </Button>
               </div>
             ) : (
               <form
@@ -313,6 +310,11 @@ function Home() {
               </div>
             ) : (
               <div className="mt-4 space-y-4">
+                {(stateQ.data?.status ?? "upcoming") !== "live" ? (
+                  <div className="glass rounded-lg p-3 text-xs font-mono text-yellow-400 border border-yellow-400/30">
+                    Submissions are {stateQ.data?.status === "paused" ? "paused" : stateQ.data?.status === "finished" ? "closed — competition finished" : "not open yet — waiting for admin to start"}.
+                  </div>
+                ) : null}
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Progress</span>
                   <span className="font-mono">
@@ -332,7 +334,10 @@ function Home() {
                       order={field.order}
                       label={field.label}
                       solved={solvedOrders.has(field.order)}
-                      unlocked={field.order === nextOrder}
+                      unlocked={
+                        field.order === nextOrder &&
+                        (stateQ.data?.status ?? "upcoming") === "live"
+                      }
                       onSubmit={(v) => submitMut.mutate(v)}
                       submitting={submitMut.isPending}
                     />
@@ -480,11 +485,6 @@ function Home() {
             </ul>
           </div>
         </section>
-
-        <footer className="border-t border-glass-border pt-6 flex items-center justify-between text-xs text-muted-foreground font-mono">
-          <span>CTF/CORE · secured with SHA-256 flag hashing</span>
-          <span>{new Date().getFullYear()}</span>
-        </footer>
       </main>
     </div>
   );

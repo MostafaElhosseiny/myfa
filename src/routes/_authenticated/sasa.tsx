@@ -162,28 +162,49 @@ function CompetitionControls() {
   const exportCsv = useServerFn(exportLeaderboardCsv);
   const qc = useQueryClient();
 
-  async function change(status: "live" | "paused" | "finished") {
+  const [duration, setDuration] = useState<number>(60);
+
+  async function changeStatus(status: "upcoming" | "live" | "paused" | "finished") {
     try {
       await setState({ data: { status } });
       qc.invalidateQueries();
-      toast.success(`Competition ${status}`);
+      toast.success(`Status set to ${status}`);
     } catch (e) {
       toast.error((e as Error).message);
     }
   }
 
-  async function setEnd(mins: number) {
-    const ends = new Date(Date.now() + mins * 60_000).toISOString();
-    await setState({ data: { status: "live", ends_at: ends } });
-    qc.invalidateQueries();
-    toast.success(`Ends in ${mins} min`);
+  async function startChallenge() {
+    if (!duration || duration <= 0) return toast.error("Enter a valid duration in minutes");
+    const ends = new Date(Date.now() + duration * 60_000).toISOString();
+    try {
+      await setState({ data: { status: "live", ends_at: ends } });
+      qc.invalidateQueries();
+      toast.success(`Challenge started · ${duration} min`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
+  async function extendTime() {
+    if (!duration || duration <= 0) return toast.error("Enter minutes to add");
+    const current = stateQ.data?.ends_at ? new Date(stateQ.data.ends_at).getTime() : Date.now();
+    const base = Math.max(current, Date.now());
+    const ends = new Date(base + duration * 60_000).toISOString();
+    try {
+      await setState({ data: { status: "live", ends_at: ends } });
+      qc.invalidateQueries();
+      toast.success(`Extended by ${duration} min`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   }
 
   async function doReset() {
-    if (!confirm("Reset ALL player progress, submissions and activity? Challenges stay.")) return;
+    if (!confirm("Reset ALL player progress, submissions, activity AND competition state?")) return;
     await reset();
     qc.invalidateQueries();
-    toast.success("Competition reset");
+    toast.success("Competition reset to default state");
   }
 
   async function doExport() {
@@ -198,43 +219,74 @@ function CompetitionControls() {
   }
 
   const s = stateQ.data;
+  const status = (s?.status ?? "upcoming") as "upcoming" | "live" | "paused" | "finished";
+
   return (
-    <div className="glass rounded-2xl p-5 flex flex-wrap items-center gap-3">
-      <div>
-        <div className="text-xs uppercase tracking-widest text-muted-foreground">Status</div>
-        <div className="font-mono text-lg font-bold">{s?.status?.toUpperCase() ?? "…"}</div>
+    <div className="glass rounded-2xl p-5 space-y-4">
+      <div className="flex flex-wrap items-end gap-4">
+        <div>
+          <div className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Status</div>
+          <select
+            value={status}
+            onChange={(e) => changeStatus(e.target.value as typeof status)}
+            className="h-10 rounded-md bg-background border border-glass-border px-3 font-mono text-sm"
+          >
+            <option value="upcoming">Draft</option>
+            <option value="live">Live</option>
+            <option value="paused">Paused</option>
+            <option value="finished">Finished</option>
+          </select>
+        </div>
+
+        <div>
+          <div className="text-xs uppercase tracking-widest text-muted-foreground mb-1">
+            Duration (minutes)
+          </div>
+          <Input
+            type="number"
+            min={1}
+            value={duration}
+            onChange={(e) => setDuration(Number(e.target.value))}
+            className="h-10 w-32 font-mono"
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-2 ml-auto">
+          <Button
+            size="sm"
+            onClick={startChallenge}
+            className="bg-cyber-lime/20 text-cyber-lime hover:bg-cyber-lime/30"
+          >
+            <Play className="mr-1 h-4 w-4" />
+            Start Challenge
+          </Button>
+          <Button size="sm" variant="outline" onClick={extendTime}>
+            + Extend
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => changeStatus("paused")}>
+            <Pause className="mr-1 h-4 w-4" />
+            Pause
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => changeStatus("finished")}>
+            <Square className="mr-1 h-4 w-4" />
+            Finish
+          </Button>
+          <Button size="sm" variant="outline" onClick={doExport}>
+            <Download className="mr-1 h-4 w-4" />
+            CSV
+          </Button>
+          <Button size="sm" variant="destructive" onClick={doReset}>
+            <RotateCcw className="mr-1 h-4 w-4" />
+            Reset all
+          </Button>
+        </div>
       </div>
-      <div className="ml-auto flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          onClick={() => change("live")}
-          className="bg-cyber-lime/20 text-cyber-lime hover:bg-cyber-lime/30"
-        >
-          <Play className="mr-1 h-4 w-4" />
-          Live
-        </Button>
-        <Button size="sm" onClick={() => change("paused")} variant="outline">
-          <Pause className="mr-1 h-4 w-4" />
-          Pause
-        </Button>
-        <Button size="sm" onClick={() => change("finished")} variant="outline">
-          <Square className="mr-1 h-4 w-4" />
-          Finish
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => setEnd(60)}>
-          +60m
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => setEnd(180)}>
-          +3h
-        </Button>
-        <Button size="sm" variant="outline" onClick={doExport}>
-          <Download className="mr-1 h-4 w-4" />
-          CSV
-        </Button>
-        <Button size="sm" variant="destructive" onClick={doReset}>
-          <RotateCcw className="mr-1 h-4 w-4" />
-          Reset all
-        </Button>
+
+      <div className="text-xs font-mono text-muted-foreground">
+        Ends at:{" "}
+        <span className="text-foreground">
+          {s?.ends_at ? new Date(s.ends_at).toLocaleString() : "—"}
+        </span>
       </div>
     </div>
   );
