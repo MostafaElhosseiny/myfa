@@ -32,17 +32,9 @@ export function Nav() {
             <span className="text-foreground">Platform</span>
           </span>
         </div>
-        {showLogout ? (
+        {showLabel && label ? (
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-md glass border-glass-border">
-            {label ? <span className="text-xs font-mono text-cyber-cyan">@{label}</span> : null}
-            <button
-              onClick={logout}
-              className="text-muted-foreground hover:text-destructive"
-              title="Logout"
-              aria-label="Logout"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-            </button>
+            <span className="text-xs font-mono text-cyber-cyan">@{label}</span>
           </div>
         ) : null}
       </div>
