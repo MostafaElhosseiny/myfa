@@ -166,21 +166,23 @@ export const submitFlag = createServerFn({ method: "POST" })
     // Load all flags for challenge (server-only)
     const { data: allFlags } = await supabaseAdmin
       .from("challenge_flags")
-      .select("flag_hash, flag_order, label")
+      .select("id, flag_hash, flag_order, label")
       .eq("challenge_id", challenge.id)
       .order("flag_order", { ascending: true });
     const flags = allFlags ?? [];
 
-    // What has the player already solved?
+    // What has the player already solved? (tracked by specific flag id so
+    // duplicate flag answers within a challenge stay independent).
     const { data: prevSolves } = await supabaseAdmin
       .from("player_flag_solves")
-      .select("flag_hash")
+      .select("flag_id")
       .eq("player_id", player.id)
       .eq("challenge_id", challenge.id);
+    const solvedFlagIds = new Set(
+      (prevSolves ?? []).map((s) => s.flag_id).filter((v): v is string => !!v),
+    );
     const solvedOrders = new Set(
-      (prevSolves ?? [])
-        .map((s) => flags.find((f) => f.flag_hash === s.flag_hash)?.flag_order)
-        .filter((v): v is number => typeof v === "number"),
+      flags.filter((f) => solvedFlagIds.has(f.id)).map((f) => f.flag_order),
     );
     const nextRequiredOrder = flags
       .map((f) => f.flag_order)
@@ -188,7 +190,8 @@ export const submitFlag = createServerFn({ method: "POST" })
 
     // Match only against the currently-expected flag. This intentionally
     // supports duplicate flag values across positions while still forcing
-    // sequential submission.
+    // sequential submission — only THIS flag is marked solved even if a
+    // later flag shares the same answer.
     const expected = nextRequiredOrder
       ? flags.find((f) => f.flag_order === nextRequiredOrder) ?? null
       : null;
@@ -209,10 +212,11 @@ export const submitFlag = createServerFn({ method: "POST" })
       return { status: "incorrect" as const, message: "Incorrect flag" };
     }
 
-    // Record solve
+    // Record solve for the specific flag position only.
     await supabaseAdmin.from("player_flag_solves").insert({
       player_id: player.id,
       challenge_id: challenge.id,
+      flag_id: matched.id,
       flag_hash: matched.flag_hash,
     });
 
