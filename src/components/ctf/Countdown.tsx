@@ -23,6 +23,9 @@ export function Countdown({
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (status !== "live" || !endsAt) return;
+    // Sync immediately so the first render after resume uses a fresh clock
+    // instead of a stale value captured while the component was paused.
+    setNow(Date.now());
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, [status, endsAt]);
