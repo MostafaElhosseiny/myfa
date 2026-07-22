@@ -146,8 +146,6 @@ function Home() {
         }
       } else if (res.status === "duplicate") {
         toast.info(res.message);
-      } else if (res.status === "out_of_order") {
-        toast.warning(res.message);
       } else if (res.status === "closed") {
         toast.warning(res.message);
       } else {
