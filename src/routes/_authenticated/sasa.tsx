@@ -676,3 +676,96 @@ function SubmissionsTab() {
     </div>
   );
 }
+
+function LeaderboardTab() {
+  const q = useQuery({
+    queryKey: ["admin", "leaderboard"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("players")
+        .select("id, name_display, points, flags_solved, challenges_completed, first_completed_at")
+        .order("points", { ascending: false })
+        .order("flags_solved", { ascending: false })
+        .order("first_completed_at", { ascending: true, nullsFirst: false });
+      return data ?? [];
+    },
+    refetchInterval: 5000,
+  });
+
+  // Realtime — invalidate when player rows change.
+  useEffect(() => {
+    const ch = supabase
+      .channel("admin-leaderboard")
+      .on(
+        "postgres_changes" as never,
+        { event: "*", schema: "public", table: "players" },
+        () => q.refetch(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const rows = q.data ?? [];
+  return (
+    <div className="glass rounded-2xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-glass-border flex items-center justify-between">
+        <h2 className="text-lg font-bold flex items-center gap-2">
+          <Trophy className="h-5 w-5 text-cyber-cyan" /> Live leaderboard
+        </h2>
+        <span className="text-xs text-muted-foreground font-mono">{rows.length} players</span>
+      </div>
+      <table className="w-full text-sm">
+        <thead className="text-xs uppercase text-muted-foreground">
+          <tr>
+            <th className="text-left px-4 py-3">#</th>
+            <th className="text-left px-4 py-3">Player</th>
+            <th className="text-right px-4 py-3">Flags</th>
+            <th className="text-right px-4 py-3">Completed</th>
+            <th className="text-right px-4 py-3">Points</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => {
+            const rank = i + 1;
+            return (
+              <tr key={r.id} className="border-t border-glass-border">
+                <td className="px-4 py-3 font-mono">
+                  {rank <= 3 ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Medal
+                        className={`h-4 w-4 ${
+                          rank === 1
+                            ? "text-yellow-400"
+                            : rank === 2
+                              ? "text-slate-300"
+                              : "text-amber-600"
+                        }`}
+                      />
+                      {rank}
+                    </span>
+                  ) : (
+                    rank
+                  )}
+                </td>
+                <td className="px-4 py-3 font-mono">{r.name_display}</td>
+                <td className="px-4 py-3 text-right font-mono">{r.flags_solved}</td>
+                <td className="px-4 py-3 text-right font-mono">{r.challenges_completed}</td>
+                <td className="px-4 py-3 text-right font-mono text-cyber-cyan">{r.points}</td>
+              </tr>
+            );
+          })}
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
+                No players yet.
+              </td>
+            </tr>
+          ) : null}
+        </tbody>
+      </table>
+    </div>
+  );
+}
