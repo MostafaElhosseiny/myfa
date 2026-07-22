@@ -159,6 +159,7 @@ function AdminPage() {
 }
 
 function CompetitionControls() {
+  const qc = useQueryClient();
   const stateQ = useQuery({
     queryKey: ["comp", "state"],
     queryFn: async () => {
@@ -166,10 +167,22 @@ function CompetitionControls() {
       return data;
     },
   });
+  useEffect(() => {
+    const ch = supabase
+      .channel("admin-comp-state")
+      .on(
+        "postgres_changes" as never,
+        { event: "*", schema: "public", table: "competition_state" },
+        () => qc.invalidateQueries({ queryKey: ["comp", "state"] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [qc]);
   const setState = useServerFn(setCompetitionState);
   const reset = useServerFn(resetCompetition);
   const exportCsv = useServerFn(exportLeaderboardCsv);
-  const qc = useQueryClient();
 
   const [duration, setDuration] = useState<number>(60);
 
