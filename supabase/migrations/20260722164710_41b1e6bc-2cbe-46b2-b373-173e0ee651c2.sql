@@ -1,0 +1,3 @@
+ALTER TABLE public.challenge_flags DROP CONSTRAINT IF EXISTS challenge_flags_challenge_id_flag_hash_key;
+ALTER TABLE public.challenge_flags DROP CONSTRAINT IF EXISTS challenge_flags_challenge_id_flag_order_key;
+ALTER TABLE public.challenge_flags ADD CONSTRAINT challenge_flags_challenge_id_flag_order_key UNIQUE (challenge_id, flag_order);
