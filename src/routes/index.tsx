@@ -165,6 +165,20 @@ function Home() {
     return totalPlayers;
   }, [totalPlayers]);
 
+  // Tick every second while an end time is set so the UI locks/unlocks in real
+  // time when the countdown expires or is extended.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!stateQ.data?.ends_at) return;
+    const i = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(i);
+  }, [stateQ.data?.ends_at]);
+  const expired = stateQ.data?.ends_at
+    ? new Date(stateQ.data.ends_at).getTime() <= now
+    : false;
+  const rawStatus = (stateQ.data?.status ?? "upcoming") as string;
+  const isLive = rawStatus === "live" && !expired;
+
   const solvedOrders = new Set(progressQ.data?.solvedOrders ?? []);
   const completed = !!progressQ.data?.completedAt;
   const nextOrder = (progressQ.data?.solvedOrders?.length ?? 0) + 1;
