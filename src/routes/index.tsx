@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { joinAsPlayer, submitFlag, getActiveChallenge, getMyProgress } from "@/lib/player.functions";
+import { joinAsPlayer, submitFlag, getActiveChallenge, getMyProgress, finalizeIfExpired } from "@/lib/player.functions";
 import { usePlayer } from "@/hooks/usePlayer";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 import { Nav } from "@/components/ctf/Nav";
@@ -178,6 +178,14 @@ function Home() {
     : false;
   const rawStatus = (stateQ.data?.status ?? "upcoming") as string;
   const isLive = rawStatus === "live" && !expired;
+
+  // When the timer expires while still marked live, flip to "finished" once.
+  const finalize = useServerFn(finalizeIfExpired);
+  useEffect(() => {
+    if (rawStatus === "live" && expired) {
+      finalize().then(() => qc.invalidateQueries({ queryKey: ["comp", "state"] })).catch(() => {});
+    }
+  }, [rawStatus, expired, finalize, qc]);
 
   const solvedOrders = new Set(progressQ.data?.solvedOrders ?? []);
   const completed = !!progressQ.data?.completedAt;

@@ -33,7 +33,9 @@ import {
   getAdminPlayers,
   exportLeaderboardCsv,
 } from "@/lib/admin.functions";
+import { finalizeIfExpired } from "@/lib/player.functions";
 import { Nav } from "@/components/ctf/Nav";
+import { Countdown } from "@/components/ctf/Countdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -158,6 +160,7 @@ function AdminPage() {
 }
 
 function CompetitionControls() {
+  const qc = useQueryClient();
   const stateQ = useQuery({
     queryKey: ["comp", "state"],
     queryFn: async () => {
@@ -165,12 +168,39 @@ function CompetitionControls() {
       return data;
     },
   });
+  useEffect(() => {
+    const ch = supabase
+      .channel("admin-comp-state")
+      .on(
+        "postgres_changes" as never,
+        { event: "*", schema: "public", table: "competition_state" },
+        () => qc.invalidateQueries({ queryKey: ["comp", "state"] }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [qc]);
   const setState = useServerFn(setCompetitionState);
   const reset = useServerFn(resetCompetition);
   const exportCsv = useServerFn(exportLeaderboardCsv);
-  const qc = useQueryClient();
+  const finalize = useServerFn(finalizeIfExpired);
 
   const [duration, setDuration] = useState<number>(60);
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!stateQ.data?.ends_at) return;
+    const i = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(i);
+  }, [stateQ.data?.ends_at]);
+  const expired = stateQ.data?.ends_at
+    ? new Date(stateQ.data.ends_at).getTime() <= nowTs
+    : false;
+  useEffect(() => {
+    if (stateQ.data?.status === "live" && expired) {
+      finalize().then(() => qc.invalidateQueries({ queryKey: ["comp", "state"] })).catch(() => {});
+    }
+  }, [stateQ.data?.status, expired, finalize, qc]);
 
   async function changeStatus(status: "upcoming" | "live" | "paused" | "finished") {
     try {
@@ -290,11 +320,14 @@ function CompetitionControls() {
         </div>
       </div>
 
-      <div className="text-xs font-mono text-muted-foreground">
-        Ends at:{" "}
-        <span className="text-foreground">
-          {s?.ends_at ? new Date(s.ends_at).toLocaleString() : "—"}
-        </span>
+      <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-muted-foreground">
+        <Countdown endsAt={s?.ends_at ?? null} status={status} />
+        <div>
+          Ends at:{" "}
+          <span className="text-foreground">
+            {s?.ends_at ? new Date(s.ends_at).toLocaleString() : "—"}
+          </span>
+        </div>
       </div>
     </div>
   );
