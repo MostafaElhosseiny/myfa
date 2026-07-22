@@ -85,18 +85,16 @@ export const getMyProgress = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: solves } = await supabaseAdmin
       .from("player_flag_solves")
-      .select("flag_hash")
+      .select("flag_id")
       .eq("player_id", data.playerId)
       .eq("challenge_id", data.challengeId);
-    // Map hashes back to their orders (server-only join)
-    const hashes = (solves ?? []).map((s) => s.flag_hash);
+    const solvedIds = (solves ?? []).map((s) => s.flag_id).filter((v): v is string => !!v);
     let solvedOrders: number[] = [];
-    if (hashes.length > 0) {
+    if (solvedIds.length > 0) {
       const { data: fs } = await supabaseAdmin
         .from("challenge_flags")
-        .select("flag_order, flag_hash")
-        .eq("challenge_id", data.challengeId)
-        .in("flag_hash", hashes);
+        .select("id, flag_order")
+        .in("id", solvedIds);
       solvedOrders = (fs ?? []).map((f) => f.flag_order).sort((a, b) => a - b);
     }
     const { data: prog } = await supabaseAdmin
