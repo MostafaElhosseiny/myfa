@@ -117,11 +117,14 @@ export const updateChallenge = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     if (data.replaceFlags && data.fields.length > 0) {
+      if (data.fields.some((f) => !f.value || !f.value.trim())) {
+        throw new Error("All flag values are required when replacing flags");
+      }
       await supabaseAdmin.from("challenge_flags").delete().eq("challenge_id", data.id);
       await supabaseAdmin.from("challenge_flags").insert(
         data.fields.map((f, i) => ({
           challenge_id: data.id,
-          flag_hash: hashFlag(f.value),
+          flag_hash: hashFlag(f.value.trim()),
           flag_order: i + 1,
           label: f.label,
         })),
