@@ -173,8 +173,28 @@ export const submitFlag = createServerFn({ method: "POST" })
       .order("flag_order", { ascending: true });
     const flags = allFlags ?? [];
 
-    // Find matching flag using constant-time comparison
-    const matched = flags.find((f) => timingSafeEqualHex(f.flag_hash, hash));
+    // What has the player already solved?
+    const { data: prevSolves } = await supabaseAdmin
+      .from("player_flag_solves")
+      .select("flag_hash")
+      .eq("player_id", player.id)
+      .eq("challenge_id", challenge.id);
+    const solvedOrders = new Set(
+      (prevSolves ?? [])
+        .map((s) => flags.find((f) => f.flag_hash === s.flag_hash)?.flag_order)
+        .filter((v): v is number => typeof v === "number"),
+    );
+    const nextRequiredOrder = flags
+      .map((f) => f.flag_order)
+      .find((o) => !solvedOrders.has(o));
+
+    // Match only against the currently-expected flag. This intentionally
+    // supports duplicate flag values across positions while still forcing
+    // sequential submission.
+    const expected = nextRequiredOrder
+      ? flags.find((f) => f.flag_order === nextRequiredOrder) ?? null
+      : null;
+    const matched = expected && timingSafeEqualHex(expected.flag_hash, hash) ? expected : null;
 
     // Log every attempt (audit)
     await supabaseAdmin.from("submissions").insert({
@@ -184,36 +204,11 @@ export const submitFlag = createServerFn({ method: "POST" })
       correct: !!matched,
     });
 
-    // What has the player already solved?
-    const { data: prevSolves } = await supabaseAdmin
-      .from("player_flag_solves")
-      .select("flag_hash")
-      .eq("player_id", player.id)
-      .eq("challenge_id", challenge.id);
-    const solvedHashes = new Set((prevSolves ?? []).map((s) => s.flag_hash));
-    const solvedOrders = flags
-      .filter((f) => solvedHashes.has(f.flag_hash))
-      .map((f) => f.flag_order)
-      .sort((a, b) => a - b);
-    const nextRequiredOrder = solvedOrders.length + 1;
-    const nextField = flags.find((f) => f.flag_order === nextRequiredOrder);
-
+    if (!expected) {
+      return { status: "duplicate" as const, message: "All flags already captured." };
+    }
     if (!matched) {
       return { status: "incorrect" as const, message: "Incorrect flag" };
-    }
-
-    // Duplicate?
-    if (solvedHashes.has(matched.flag_hash)) {
-      return { status: "duplicate" as const, message: "You already submitted this flag." };
-    }
-
-    // Sequential enforcement
-    if (matched.flag_order !== nextRequiredOrder) {
-      const required = nextField?.label ?? `Flag ${nextRequiredOrder}`;
-      return {
-        status: "out_of_order" as const,
-        message: `You must submit ${required} first.`,
-      };
     }
 
     // Record solve
@@ -223,7 +218,7 @@ export const submitFlag = createServerFn({ method: "POST" })
       flag_hash: matched.flag_hash,
     });
 
-    const flagsSolved = solvedOrders.length + 1;
+    const flagsSolved = solvedOrders.size + 1;
     const points = flagsSolved * challenge.points_per_flag;
     const completed = flagsSolved >= challenge.required_flags;
     const completedAt = completed ? new Date().toISOString() : null;

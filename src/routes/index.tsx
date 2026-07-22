@@ -146,8 +146,6 @@ function Home() {
         }
       } else if (res.status === "duplicate") {
         toast.info(res.message);
-      } else if (res.status === "out_of_order") {
-        toast.warning(res.message);
       } else if (res.status === "closed") {
         toast.warning(res.message);
       } else {
@@ -166,6 +164,20 @@ function Home() {
     // in this query, keep parity with previous behavior by re-using count only.
     return totalPlayers;
   }, [totalPlayers]);
+
+  // Tick every second while an end time is set so the UI locks/unlocks in real
+  // time when the countdown expires or is extended.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!stateQ.data?.ends_at) return;
+    const i = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(i);
+  }, [stateQ.data?.ends_at]);
+  const expired = stateQ.data?.ends_at
+    ? new Date(stateQ.data.ends_at).getTime() <= now
+    : false;
+  const rawStatus = (stateQ.data?.status ?? "upcoming") as string;
+  const isLive = rawStatus === "live" && !expired;
 
   const solvedOrders = new Set(progressQ.data?.solvedOrders ?? []);
   const completed = !!progressQ.data?.completedAt;
@@ -310,9 +322,13 @@ function Home() {
               </div>
             ) : (
               <div className="mt-4 space-y-4">
-                {(stateQ.data?.status ?? "upcoming") !== "live" ? (
+                {!isLive ? (
                   <div className="glass rounded-lg p-3 text-xs font-mono text-yellow-400 border border-yellow-400/30">
-                    Submissions are {stateQ.data?.status === "paused" ? "paused" : stateQ.data?.status === "finished" ? "closed — competition finished" : "not open yet — waiting for admin to start"}.
+                    Submissions are {rawStatus === "paused"
+                      ? "paused"
+                      : rawStatus === "finished" || expired
+                        ? "closed — competition finished"
+                        : "not open yet — waiting for admin to start"}.
                   </div>
                 ) : null}
                 <div className="flex items-center justify-between text-xs">
@@ -334,10 +350,7 @@ function Home() {
                       order={field.order}
                       label={field.label}
                       solved={solvedOrders.has(field.order)}
-                      unlocked={
-                        field.order === nextOrder &&
-                        (stateQ.data?.status ?? "upcoming") === "live"
-                      }
+                      unlocked={field.order === nextOrder && isLive}
                       onSubmit={(v) => submitMut.mutate(v)}
                       submitting={submitMut.isPending}
                     />

@@ -17,6 +17,13 @@ const FlagFieldInput = z.object({
   label: z.string().trim().min(1).max(60),
 });
 
+// For updates, values may be empty when the admin is only renaming labels
+// or not touching flags at all.
+const FlagFieldInputLoose = z.object({
+  value: z.string().max(256).optional().default(""),
+  label: z.string().trim().min(1).max(60),
+});
+
 const ChallengeInput = z.object({
   title: z.string().trim().min(2).max(120),
   description: z.string().trim().max(2000).default(""),
@@ -68,12 +75,14 @@ export const createChallenge = createServerFn({ method: "POST" })
 export const updateChallenge = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
-    ChallengeInput.extend({
-      id: z.string().uuid(),
-      fields: z.array(FlagFieldInput).min(0).max(20),
-      replaceFlags: z.boolean().default(false),
-      labelsOnly: z.boolean().default(false),
-    }).parse(data),
+    ChallengeInput.omit({ fields: true })
+      .extend({
+        id: z.string().uuid(),
+        fields: z.array(FlagFieldInputLoose).min(0).max(20),
+        replaceFlags: z.boolean().default(false),
+        labelsOnly: z.boolean().default(false),
+      })
+      .parse(data),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
@@ -108,11 +117,14 @@ export const updateChallenge = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     if (data.replaceFlags && data.fields.length > 0) {
+      if (data.fields.some((f) => !f.value || !f.value.trim())) {
+        throw new Error("All flag values are required when replacing flags");
+      }
       await supabaseAdmin.from("challenge_flags").delete().eq("challenge_id", data.id);
       await supabaseAdmin.from("challenge_flags").insert(
         data.fields.map((f, i) => ({
           challenge_id: data.id,
-          flag_hash: hashFlag(f.value),
+          flag_hash: hashFlag(f.value.trim()),
           flag_order: i + 1,
           label: f.label,
         })),
