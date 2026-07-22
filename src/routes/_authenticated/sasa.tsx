@@ -385,8 +385,8 @@ function ChallengeForm({
     existing
       ? existing.fields.map((f) => ({ value: "", label: f.label }))
       : [
-          { value: "", label: "User Flag" },
-          { value: "", label: "Root Flag" },
+          { value: "", label: "Flag 1" },
+          { value: "", label: "Flag 2" },
         ],
   );
 
