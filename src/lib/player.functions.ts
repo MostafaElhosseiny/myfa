@@ -218,7 +218,7 @@ export const submitFlag = createServerFn({ method: "POST" })
       flag_hash: matched.flag_hash,
     });
 
-    const flagsSolved = solvedOrders.length + 1;
+    const flagsSolved = solvedOrders.size + 1;
     const points = flagsSolved * challenge.points_per_flag;
     const completed = flagsSolved >= challenge.required_flags;
     const completedAt = completed ? new Date().toISOString() : null;
