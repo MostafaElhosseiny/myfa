@@ -77,7 +77,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "CTF/CORE — Live Capture the Flag Dashboard" },
+      { title: "MYFA | CTF" },
       { name: "description", content: "Real-time CTF competition platform. Submit flags, track progress, and climb the neon leaderboard." },
       { name: "author", content: "CTF/CORE" },
       { property: "og:title", content: "CTF/CORE — Live Capture the Flag Dashboard" },
