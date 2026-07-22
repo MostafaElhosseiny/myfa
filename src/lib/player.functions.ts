@@ -277,3 +277,23 @@ export const submitFlag = createServerFn({ method: "POST" })
       completed,
     };
   });
+
+// Publicly-callable finalizer: flips competition_state to "finished" when the
+// current end time has passed. Safe by construction — only mutates if the
+// stored ends_at is in the past and status is still "live".
+export const finalizeIfExpired = createServerFn({ method: "POST" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: state } = await supabaseAdmin
+    .from("competition_state")
+    .select("status, ends_at")
+    .eq("id", 1)
+    .single();
+  if (!state || state.status !== "live" || !state.ends_at) return { finalized: false };
+  if (new Date(state.ends_at).getTime() > Date.now()) return { finalized: false };
+  await supabaseAdmin
+    .from("competition_state")
+    .update({ status: "finished", updated_at: new Date().toISOString() })
+    .eq("id", 1)
+    .eq("status", "live");
+  return { finalized: true };
+});
