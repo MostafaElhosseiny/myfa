@@ -321,7 +321,11 @@ function CompetitionControls() {
       </div>
 
       <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-muted-foreground">
-        <Countdown endsAt={s?.ends_at ?? null} status={status} />
+        <Countdown
+          endsAt={s?.ends_at ?? null}
+          status={status}
+          pausedRemainingMs={(s as { paused_remaining_ms?: number | null } | undefined)?.paused_remaining_ms ?? null}
+        />
         <div>
           Ends at:{" "}
           <span className="text-foreground">
