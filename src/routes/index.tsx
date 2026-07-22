@@ -223,8 +223,7 @@ function Home() {
               ) : null
             ) : (
               <p className="mt-4 max-w-2xl text-muted-foreground">
-                Waiting for the admin to launch the active challenge. Sit tight — this page will
-                update automatically.
+                Waiting for the admin to launch the active challenge.
               </p>
             )}
             {challenge ? (
