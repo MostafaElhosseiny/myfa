@@ -14,7 +14,7 @@ export function Nav() {
           <span className="font-mono text-sm md:text-base font-bold tracking-wider">
             <span className="text-gradient">CTF</span>
             <span className="text-muted-foreground"> </span>
-            <span className="text-foreground">Platform</span>
+            <span className="text-foreground">Platform by MYFA</span>
           </span>
         </div>
       </div>
