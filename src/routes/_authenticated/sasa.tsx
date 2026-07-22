@@ -257,6 +257,7 @@ function CompetitionControls() {
   }
 
   const s = stateQ.data;
+  const status = (s?.status ?? "upcoming") as "upcoming" | "live" | "paused" | "finished";
   const statusLabel: Record<typeof status, string> = {
     upcoming: "Draft",
     live: "Live",
