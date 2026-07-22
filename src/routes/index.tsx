@@ -322,9 +322,13 @@ function Home() {
               </div>
             ) : (
               <div className="mt-4 space-y-4">
-                {(stateQ.data?.status ?? "upcoming") !== "live" ? (
+                {!isLive ? (
                   <div className="glass rounded-lg p-3 text-xs font-mono text-yellow-400 border border-yellow-400/30">
-                    Submissions are {stateQ.data?.status === "paused" ? "paused" : stateQ.data?.status === "finished" ? "closed — competition finished" : "not open yet — waiting for admin to start"}.
+                    Submissions are {rawStatus === "paused"
+                      ? "paused"
+                      : rawStatus === "finished" || expired
+                        ? "closed — competition finished"
+                        : "not open yet — waiting for admin to start"}.
                   </div>
                 ) : null}
                 <div className="flex items-center justify-between text-xs">
@@ -346,10 +350,7 @@ function Home() {
                       order={field.order}
                       label={field.label}
                       solved={solvedOrders.has(field.order)}
-                      unlocked={
-                        field.order === nextOrder &&
-                        (stateQ.data?.status ?? "upcoming") === "live"
-                      }
+                      unlocked={field.order === nextOrder && isLive}
                       onSubmit={(v) => submitMut.mutate(v)}
                       submitting={submitMut.isPending}
                     />
