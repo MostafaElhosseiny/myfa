@@ -75,12 +75,14 @@ export const createChallenge = createServerFn({ method: "POST" })
 export const updateChallenge = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
-    ChallengeInput.extend({
-      id: z.string().uuid(),
-      fields: z.array(FlagFieldInput).min(0).max(20),
-      replaceFlags: z.boolean().default(false),
-      labelsOnly: z.boolean().default(false),
-    }).parse(data),
+    ChallengeInput.omit({ fields: true })
+      .extend({
+        id: z.string().uuid(),
+        fields: z.array(FlagFieldInputLoose).min(0).max(20),
+        replaceFlags: z.boolean().default(false),
+        labelsOnly: z.boolean().default(false),
+      })
+      .parse(data),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
