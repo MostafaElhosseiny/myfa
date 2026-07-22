@@ -179,6 +179,14 @@ function Home() {
   const rawStatus = (stateQ.data?.status ?? "upcoming") as string;
   const isLive = rawStatus === "live" && !expired;
 
+  // When the timer expires while still marked live, flip to "finished" once.
+  const finalize = useServerFn(finalizeIfExpired);
+  useEffect(() => {
+    if (rawStatus === "live" && expired) {
+      finalize().then(() => qc.invalidateQueries({ queryKey: ["comp", "state"] })).catch(() => {});
+    }
+  }, [rawStatus, expired, finalize, qc]);
+
   const solvedOrders = new Set(progressQ.data?.solvedOrders ?? []);
   const completed = !!progressQ.data?.completedAt;
   const nextOrder = (progressQ.data?.solvedOrders?.length ?? 0) + 1;
