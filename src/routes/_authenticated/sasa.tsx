@@ -129,6 +129,9 @@ function AdminPage() {
             <TabsTrigger value="challenges">
               <ListChecks className="mr-2 h-4 w-4" /> Challenge
             </TabsTrigger>
+            <TabsTrigger value="leaderboard">
+              <Trophy className="mr-2 h-4 w-4" /> Leaderboard
+            </TabsTrigger>
             <TabsTrigger value="players">
               <Users className="mr-2 h-4 w-4" /> Players
             </TabsTrigger>
@@ -136,6 +139,9 @@ function AdminPage() {
           </TabsList>
           <TabsContent value="challenges" className="mt-4">
             <ChallengesTab />
+          </TabsContent>
+          <TabsContent value="leaderboard" className="mt-4">
+            <LeaderboardTab />
           </TabsContent>
           <TabsContent value="players" className="mt-4">
             <PlayersTab />
