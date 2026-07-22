@@ -1,10 +1,10 @@
-import { Shield, LogOut } from "lucide-react";
+import { Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePlayer } from "@/hooks/usePlayer";
 import { supabase } from "@/integrations/supabase/client";
 
 export function Nav() {
-  const { player, hydrated, savePlayer } = usePlayer();
+  const { player, hydrated } = usePlayer();
   const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
@@ -13,14 +13,7 @@ export function Nav() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  async function logout() {
-    savePlayer(null);
-    if (hasSession) {
-      await supabase.auth.signOut();
-    }
-  }
-
-  const showLogout = (hydrated && player) || hasSession;
+  const showLabel = (hydrated && player) || hasSession;
   const label = player?.name ?? (hasSession ? "admin" : "");
 
   return (
