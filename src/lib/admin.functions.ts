@@ -17,6 +17,13 @@ const FlagFieldInput = z.object({
   label: z.string().trim().min(1).max(60),
 });
 
+// For updates, values may be empty when the admin is only renaming labels
+// or not touching flags at all.
+const FlagFieldInputLoose = z.object({
+  value: z.string().max(256).optional().default(""),
+  label: z.string().trim().min(1).max(60),
+});
+
 const ChallengeInput = z.object({
   title: z.string().trim().min(2).max(120),
   description: z.string().trim().max(2000).default(""),
