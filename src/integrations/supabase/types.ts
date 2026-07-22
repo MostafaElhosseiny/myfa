@@ -188,18 +188,21 @@ export type Database = {
         Row: {
           challenge_id: string
           flag_hash: string
+          flag_id: string
           player_id: string
           solved_at: string
         }
         Insert: {
           challenge_id: string
           flag_hash: string
+          flag_id: string
           player_id: string
           solved_at?: string
         }
         Update: {
           challenge_id?: string
           flag_hash?: string
+          flag_id?: string
           player_id?: string
           solved_at?: string
         }
@@ -209,6 +212,13 @@ export type Database = {
             columns: ["challenge_id"]
             isOneToOne: false
             referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_flag_solves_flag_id_fkey"
+            columns: ["flag_id"]
+            isOneToOne: false
+            referencedRelation: "challenge_flags"
             referencedColumns: ["id"]
           },
           {
