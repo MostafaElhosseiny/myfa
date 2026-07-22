@@ -291,11 +291,14 @@ function CompetitionControls() {
         </div>
       </div>
 
-      <div className="text-xs font-mono text-muted-foreground">
-        Ends at:{" "}
-        <span className="text-foreground">
-          {s?.ends_at ? new Date(s.ends_at).toLocaleString() : "—"}
-        </span>
+      <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-muted-foreground">
+        <Countdown endsAt={s?.ends_at ?? null} status={status} />
+        <div>
+          Ends at:{" "}
+          <span className="text-foreground">
+            {s?.ends_at ? new Date(s.ends_at).toLocaleString() : "—"}
+          </span>
+        </div>
       </div>
     </div>
   );
