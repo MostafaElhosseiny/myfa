@@ -1,0 +1,1 @@
+ALTER TABLE public.competition_state ADD COLUMN IF NOT EXISTS paused_remaining_ms integer;

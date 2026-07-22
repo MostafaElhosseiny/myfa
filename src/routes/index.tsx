@@ -232,6 +232,7 @@ function Home() {
                 <Countdown
                   endsAt={stateQ.data?.ends_at ?? null}
                   status={stateQ.data?.status ?? "upcoming"}
+                  pausedRemainingMs={(stateQ.data as { paused_remaining_ms?: number | null } | undefined)?.paused_remaining_ms ?? null}
                 />
               </div>
             ) : null}

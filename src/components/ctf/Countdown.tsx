@@ -1,12 +1,31 @@
 import { useEffect, useState } from "react";
 import { Clock } from "lucide-react";
 
-export function Countdown({ endsAt, status }: { endsAt: string | null; status: string }) {
+function formatMs(ms: number) {
+  const clamped = Math.max(0, ms);
+  const h = Math.floor(clamped / 3_600_000);
+  const m = Math.floor((clamped % 3_600_000) / 60_000);
+  const s = Math.floor((clamped % 60_000) / 1000);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+export function Countdown({
+  endsAt,
+  status,
+  pausedRemainingMs,
+}: {
+  endsAt: string | null;
+  status: string;
+  pausedRemainingMs?: number | null;
+}) {
+  // Only tick when the challenge is actually live. Paused/finished/upcoming
+  // must not decrement — the database is the source of truth.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
+    if (status !== "live" || !endsAt) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [status, endsAt]);
 
   const label =
     status === "finished"
@@ -27,14 +46,14 @@ export function Countdown({ endsAt, status }: { endsAt: string | null; status: s
           : "bg-cyber-cyan";
 
   let timeLeft = "";
-  if (endsAt) {
+  if (status === "live" && endsAt) {
     const diff = new Date(endsAt).getTime() - now;
-    if (diff > 0) {
-      const h = Math.floor(diff / 3_600_000);
-      const m = Math.floor((diff % 3_600_000) / 60_000);
-      const s = Math.floor((diff % 60_000) / 1000);
-      timeLeft = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-    }
+    if (diff > 0) timeLeft = formatMs(diff);
+    else timeLeft = "00:00:00";
+  } else if (status === "paused" && pausedRemainingMs && pausedRemainingMs > 0) {
+    timeLeft = formatMs(pausedRemainingMs);
+  } else if (status === "finished") {
+    timeLeft = "00:00:00";
   }
 
   return (
