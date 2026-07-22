@@ -125,18 +125,21 @@ export type Database = {
         Row: {
           ends_at: string | null
           id: number
+          paused_remaining_ms: number | null
           status: string
           updated_at: string
         }
         Insert: {
           ends_at?: string | null
           id?: number
+          paused_remaining_ms?: number | null
           status?: string
           updated_at?: string
         }
         Update: {
           ends_at?: string | null
           id?: number
+          paused_remaining_ms?: number | null
           status?: string
           updated_at?: string
         }
