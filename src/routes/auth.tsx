@@ -14,7 +14,6 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -29,15 +28,6 @@ function AuthPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: window.location.origin + "/sasa" },
-        });
-        if (error) throw error;
-        toast.success("Account created — signing you in…");
-      }
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       toast.success("Signed in");
@@ -69,18 +59,11 @@ function AuthPage() {
               <Input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required minLength={6} className="mt-1 h-11 font-mono" />
             </div>
             <Button type="submit" disabled={busy} className="w-full h-11 bg-primary text-primary-foreground glow-primary">
-              {busy ? "…" : mode === "signin" ? "Sign in" : "Create account & sign in"}
+              {busy ? "…" : "Sign in"}
             </Button>
           </form>
-          <button
-            type="button"
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-            className="mt-4 text-xs text-muted-foreground hover:text-foreground w-full text-center"
-          >
-            {mode === "signin" ? "First time? Create the admin account" : "Have an account? Sign in"}
-          </button>
           <p className="mt-6 text-[11px] text-muted-foreground font-mono">
-            The configured admin email is auto-granted the admin role on sign-up. Other accounts have read-only access.
+            Admin access only. Contact the system administrator if you need an account.
           </p>
         </div>
       </main>
