@@ -183,8 +183,23 @@ function CompetitionControls() {
   const setState = useServerFn(setCompetitionState);
   const reset = useServerFn(resetCompetition);
   const exportCsv = useServerFn(exportLeaderboardCsv);
+  const finalize = useServerFn(finalizeIfExpired);
 
   const [duration, setDuration] = useState<number>(60);
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!stateQ.data?.ends_at) return;
+    const i = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(i);
+  }, [stateQ.data?.ends_at]);
+  const expired = stateQ.data?.ends_at
+    ? new Date(stateQ.data.ends_at).getTime() <= nowTs
+    : false;
+  useEffect(() => {
+    if (stateQ.data?.status === "live" && expired) {
+      finalize().then(() => qc.invalidateQueries({ queryKey: ["comp", "state"] })).catch(() => {});
+    }
+  }, [stateQ.data?.status, expired, finalize, qc]);
 
   async function changeStatus(status: "upcoming" | "live" | "paused" | "finished") {
     try {
