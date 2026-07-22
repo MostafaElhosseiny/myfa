@@ -257,23 +257,30 @@ function CompetitionControls() {
   }
 
   const s = stateQ.data;
-  const status = (s?.status ?? "upcoming") as "upcoming" | "live" | "paused" | "finished";
+  const statusLabel: Record<typeof status, string> = {
+    upcoming: "Draft",
+    live: "Live",
+    paused: "Paused",
+    finished: "Finished",
+  };
+  const statusColor: Record<typeof status, string> = {
+    upcoming: "text-cyber-cyan border-cyber-cyan/40",
+    live: "text-cyber-lime border-cyber-lime/40",
+    paused: "text-yellow-400 border-yellow-400/40",
+    finished: "text-destructive border-destructive/40",
+  };
 
   return (
     <div className="glass rounded-2xl p-5 space-y-4">
       <div className="flex flex-wrap items-end gap-4">
         <div>
           <div className="text-xs uppercase tracking-widest text-muted-foreground mb-1">Status</div>
-          <select
-            value={status}
-            onChange={(e) => changeStatus(e.target.value as typeof status)}
-            className="h-10 rounded-md bg-background border border-glass-border px-3 font-mono text-sm"
+          <div
+            className={`h-10 inline-flex items-center rounded-md border px-3 font-mono text-sm bg-background/40 ${statusColor[status]}`}
           >
-            <option value="upcoming">Draft</option>
-            <option value="live">Live</option>
-            <option value="paused">Paused</option>
-            <option value="finished">Finished</option>
-          </select>
+            <span className="h-2 w-2 rounded-full bg-current mr-2 animate-pulse" />
+            {statusLabel[status]}
+          </div>
         </div>
 
         <div>
@@ -296,18 +303,46 @@ function CompetitionControls() {
             className="bg-cyber-lime/20 text-cyber-lime hover:bg-cyber-lime/30"
           >
             <Play className="mr-1 h-4 w-4" />
-            Start Challenge
+            Start
           </Button>
+          {status === "paused" ? (
+            <Button
+              size="sm"
+              onClick={() => changeStatus("live")}
+              className="bg-cyber-lime/20 text-cyber-lime hover:bg-cyber-lime/30"
+            >
+              <Play className="mr-1 h-4 w-4" />
+              Resume
+            </Button>
+          ) : null}
           <Button size="sm" variant="outline" onClick={extendTime}>
             + Extend
           </Button>
-          <Button size="sm" variant="outline" onClick={() => changeStatus("paused")}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => changeStatus("paused")}
+            disabled={status !== "live"}
+          >
             <Pause className="mr-1 h-4 w-4" />
             Pause
           </Button>
-          <Button size="sm" variant="outline" onClick={() => changeStatus("finished")}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => changeStatus("finished")}
+            disabled={status === "finished" || status === "upcoming"}
+          >
             <Square className="mr-1 h-4 w-4" />
             Finish
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => changeStatus("upcoming")}
+            disabled={status === "upcoming"}
+          >
+            Draft
           </Button>
           <Button size="sm" variant="outline" onClick={doExport}>
             <Download className="mr-1 h-4 w-4" />
