@@ -63,7 +63,7 @@ function AuthPage() {
             </Button>
           </form>
           <p className="mt-6 text-[11px] text-muted-foreground font-mono">
-            Admin access only. Contact the system administrator if you need an account.
+            Admin access only.
           </p>
         </div>
       </main>
