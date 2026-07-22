@@ -15,6 +15,8 @@ import {
   X,
   Users,
   ListChecks,
+  Trophy,
+  Medal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
