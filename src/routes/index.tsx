@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { joinAsPlayer, submitFlag, getActiveChallenge, getMyProgress } from "@/lib/player.functions";
+import { joinAsPlayer, submitFlag, getActiveChallenge, getMyProgress, finalizeIfExpired } from "@/lib/player.functions";
 import { usePlayer } from "@/hooks/usePlayer";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 import { Nav } from "@/components/ctf/Nav";
