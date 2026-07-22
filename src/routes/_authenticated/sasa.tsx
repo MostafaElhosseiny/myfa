@@ -33,6 +33,7 @@ import {
   getAdminPlayers,
   exportLeaderboardCsv,
 } from "@/lib/admin.functions";
+import { finalizeIfExpired } from "@/lib/player.functions";
 import { Nav } from "@/components/ctf/Nav";
 import { Countdown } from "@/components/ctf/Countdown";
 import { Button } from "@/components/ui/button";
