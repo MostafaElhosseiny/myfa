@@ -168,11 +168,49 @@ export const setCompetitionState = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const patch: { status: typeof data.status; updated_at: string; ends_at?: string | null } = {
+
+    // Load current state to preserve remaining time across pause/resume.
+    const { data: current } = await supabaseAdmin
+      .from("competition_state")
+      .select("status, ends_at, paused_remaining_ms")
+      .eq("id", 1)
+      .single();
+
+    const nowMs = Date.now();
+    const patch: {
+      status: typeof data.status;
+      updated_at: string;
+      ends_at?: string | null;
+      paused_remaining_ms?: number | null;
+    } = {
       status: data.status,
       updated_at: new Date().toISOString(),
     };
-    if (data.ends_at !== undefined) patch.ends_at = data.ends_at;
+
+    if (data.ends_at !== undefined) {
+      // Explicit ends_at from admin (Start / Extend). Clears paused snapshot.
+      patch.ends_at = data.ends_at;
+      patch.paused_remaining_ms = null;
+    } else if (data.status === "paused") {
+      // Freeze remaining time; clear ends_at so clients stop ticking.
+      if (current?.ends_at) {
+        const remaining = Math.max(0, new Date(current.ends_at).getTime() - nowMs);
+        patch.paused_remaining_ms = remaining;
+        patch.ends_at = null;
+      }
+    } else if (data.status === "live") {
+      // Resume from paused snapshot if present.
+      const snap = (current as { paused_remaining_ms?: number | null } | null)
+        ?.paused_remaining_ms;
+      if (snap && snap > 0) {
+        patch.ends_at = new Date(nowMs + snap).toISOString();
+        patch.paused_remaining_ms = null;
+      }
+    } else if (data.status === "finished" || data.status === "upcoming") {
+      patch.ends_at = null;
+      patch.paused_remaining_ms = null;
+    }
+
     const { error } = await supabaseAdmin.from("competition_state").update(patch).eq("id", 1);
     if (error) throw new Error(error.message);
     return { ok: true };
